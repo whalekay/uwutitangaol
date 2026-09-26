@@ -104,7 +104,6 @@ const TL={bombs:4.5,kbStart:4.3,K:8.3,burstStart:7.3,burst:10.8,mark:10.4,drop:1
   ls2Start:17.1,ls2:19.3,b6Start:15.3,b6:18.8,chainStep:0.95,end:22.5};
 const BOMBS_L=[[-10.5,9.5],[-4,6.5],[4,13.5],[10,8.5],[3,6]]; // 왼쪽이 안전할 때
 const MARKS=[['A',0,-5.7,'#E0483A'],['B',6.6,0,'#E3C23A'],['C',0,5.4,'#3F8FE0'],['D',-6.6,0,'#B06AD8'],['1',0,0,'#E0483A'],['2',-3.5,-3.55,'#E3C23A'],['3',-12.4,-13.2,'#3F8FE0']];
-const SLOT_NAME=['A징 정중앙','1번 징 아래쪽','C징 아래쪽 + 넉백 방향'];
 const DEF={priority:['ST','D1','D2','D3','D4','H1','H2'],me:'D1',always:false,slow:1,auto:false,
   sprintKey:{code:'ShiftLeft',ctrl:false,alt:false,shift:false}};
 const KEY='uwu-titan-gaol-v6';
@@ -181,15 +180,23 @@ function hitLS(ls,label){
 }
 function fetters(){
   for(const p of players)if(p.target&&!p.dead){p.stone=true;p.kb=null;rs.gaols.push({p,x:p.x,y:p.y,t:null,done:false});}
+  // 사슬: 여섯 번째 바위(6.3y) → 감옥 폭발(6y), 감옥 크기 1.8y 포함. 마지막 폭발이 타이탄 몸체(4.55y)에 닿아야 성공
+  const REACH_B=BURST+GAOL_R,REACH_G=FREEFIRE+GAOL_R,REACH_T=FREEFIRE+TR;
+  let layer=rs.gaols.filter(g=>dist(g,rs.bomb6)<=REACH_B),L=0;layer.forEach(g=>g.t=TL.b6);
+  while(layer.length){L++;const nx=rs.gaols.filter(g=>g.t==null&&layer.some(h=>dist(g,h)<=REACH_G));nx.forEach(g=>g.t=TL.b6+TL.chainStep*L);layer=nx;}
   const m=me();
   if(m.target&&!m.dead){
-    const dm=dist(m,rs.slots[m.slot]),near=rs.slots.findIndex(s=>dist(m,s)<=TOL);
-    if(dm<=TOL){}
-    else if(near>=0)fail(`${near+1}번 자리(${SLOT_NAME[near]})에 섰는데 네 자리는 ${m.slot+1}번(${SLOT_NAME[m.slot]})이야.`);
-    else fail(`감옥이 굳을 때 ${m.slot+1}번 자리(${SLOT_NAME[m.slot]})에서 ${dm.toFixed(1)}y 벗어나 있었어.`);
+    const mine=rs.gaols.find(g=>g.p===m);
+    if(mine.t==null){
+      const gaps=[dist(mine,rs.bomb6)-REACH_B,...rs.gaols.filter(g=>g.t!=null).map(g=>dist(mine,g)-REACH_G)];
+      fail(`사슬이 네 감옥까지 안 이어졌어. 가장 가까운 폭발과 ${Math.min(...gaps).toFixed(1)}y 모자랐어.`);
+    }else{
+      const lit=rs.gaols.filter(g=>g.t!=null);
+      if(lit.length<rs.gaols.length)fail('사슬이 중간에 끊겨서 모든 감옥이 터지지 않았어.');
+      const gapT=Math.min(...lit.map(g=>dist(g,TITAN)-REACH_T));
+      if(gapT>0)fail(`마지막 감옥 폭발이 타이탄에 안 닿았어. ${gapT.toFixed(1)}y 모자랐어.`);
+    }
   }
-  let layer=rs.gaols.filter(g=>dist(g,rs.bomb6)<=BURST+GAOL_R),L=0;layer.forEach(g=>g.t=TL.b6);
-  while(layer.length){L++;const nx=rs.gaols.filter(g=>g.t==null&&layer.some(h=>dist(g,h)<=FREEFIRE+GAOL_R));nx.forEach(g=>g.t=TL.b6+TL.chainStep*L);layer=nx;}
 }
 function burst6(){
   rs.bomb6.done=true;rs.booms.push({x:rs.bomb6.x,y:rs.bomb6.y,r:BURST,t});
@@ -201,7 +208,7 @@ function freefire(g){
 }
 function resolve(){
   phase='result';const m=me();const ok=rs.fails.length===0;
-  let html=ok?`<b>성공!</b> ${m.target?`${m.slot+1}번(${SLOT_NAME[m.slot]}) 정확.`:'대상 아님, 전부 피함.'}`
+  let html=ok?`<b>성공!</b> ${m.target?'사슬이 타이탄까지 이어졌어.':'대상 아님, 전부 피함.'}`
     :'<b>실패</b><ul>'+rs.fails.map(f=>`<li>${f}</li>`).join('')+'</ul>';
   html+=`<div style="font-size:13px;margin-top:4px">감옥: ${rs.order.map((r,i)=>`${i+1}번 ${r}`).join(', ')}</div>`;
   setMsg(html,ok?'ok':'bad');rs.ok=ok;if(cfg.auto)autoT=3.2;
@@ -314,10 +321,6 @@ function draw(){
     for(const pd of rs.puddles){ctx.fillStyle=C.sludge;ctx.globalAlpha=.45;circle(pd.x,pd.y,3);ctx.fill();ctx.globalAlpha=1;}
     if(phase!=='idle'&&(phase!=='run'||t>=TL.bombs))for(const b of rs.bombs)if(!b.done)drawRock(C,b,phase==='run'&&t>=TL.burstStart);
     if(phase==='run'&&t>=TL.drop&&!rs.bomb6.done)drawRock(C,rs.bomb6,t>=TL.b6Start);
-    if(phase==='result'){ctx.strokeStyle=C.ink;ctx.lineWidth=1.5;ctx.globalAlpha=.8;ctx.setLineDash([4,4]);
-      rs.slots.forEach((s,i)=>{circle(s.x,s.y,TOL);ctx.stroke();
-        ctx.fillStyle=C.ink;ctx.font='600 12px "IBM Plex Sans KR",sans-serif';ctx.fillText(String(i+1),SX(s.x)+(TOL+0.9)*scale,SY(s.y));});
-      ctx.setLineDash([]);ctx.globalAlpha=1;}
     for(const ls of [rs.ls1,rs.ls2])if(ls.angs&&t<ls.vanish)drawLS(C,ls,0.36);
   }
   // 타이탄
