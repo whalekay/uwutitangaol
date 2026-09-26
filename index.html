@@ -97,7 +97,7 @@ kbd{font-family:inherit;border:1px solid var(--line);border-radius:4px;padding:0
 const D=Math.PI/180;
 const ROLES=['MT','ST','H1','H2','D1','D2','D3','D4'];
 // 경기장: 반경 20, 타이탄 1차 지오크래시 후 16 밖은 즉사
-const RB=20,RP=16,TR=4.55,KB=24,BURST=6.3,GAOL_R=1.8,FREEFIRE=6,LSW=6,LSKB=15,TOL=2,SPEED=6,SPRINT_MUL=1.3,SPRINT_DUR=10,PRAD=0,BURY=4.3,KB_TRAVEL=0.8,KB_LOCK=1.2,HIT_DELAY=0;
+const RB=20,RP=16,TR=4.55,KB=24,BURST=6.3,GAOL_R=1.8,FREEFIRE=6,LSW=6,LSKB=30,TOL=2,SPEED=6,SPRINT_MUL=1.3,SPRINT_DUR=10,PRAD=0,BURY=4.3,KB_TRAVEL=0.8,KB_LOCK=1.2,HIT_DELAY=0.5;
 const TITAN={x:0,y:-14};
 // 지오크래시 착지 = 0초
 const TL={bombs:4.5,kbStart:4.3,K:8.3,burstStart:7.3,burst:10.8,mark:10.4,drop:12.5,ls1Start:12.6,ls1:14.8,fetters:15.4,
@@ -135,8 +135,8 @@ function startRound(){
     bomb6:{x:s*4.3,y:13.3,done:false},
     slots:[{x:0,y:-5.7},{x:0,y:0.7},{x:s*2,y:6.3}],
     // 장판은 시전 끝에 사라지지만 판정은 조금 뒤에 들어옴
-    ls1:{start:TL.ls1Start,vanish:TL.ls1,hit:TL.ls1+HIT_DELAY,angs:null,done:false},
-    ls2:{start:TL.ls2Start,vanish:TL.ls2,hit:TL.ls2+HIT_DELAY,angs:null,done:false},
+    ls1:{start:TL.ls1-HIT_DELAY-2.2,vanish:TL.ls1-HIT_DELAY,hit:TL.ls1,angs:null,done:false},
+    ls2:{start:TL.ls2-HIT_DELAY-2.2,vanish:TL.ls2-HIT_DELAY,hit:TL.ls2,angs:null,done:false},
     flags:{},order:[],gaols:[],booms:[],puddles:[],fails:[],flash:0,flashLS:null};
   players=ROLES.map((r,i)=>({role:r,x:(i-3.5)*0.9,y:13.5,target:false,slot:-1,stone:false,dead:false,kb:null,
     lag:0.35+Math.random()*0.45,jit:(Math.random()-.5)*0.3}));
@@ -179,14 +179,14 @@ function hitLS(ls,label){
     if(p.role===cfg.me){moveTarget=null;fail(`${label} 산사태에 맞았어${p.kb.dead?' (넉백으로 장외)':''}.`);}}
 }
 function fetters(){
-  for(const p of players)if(p.target&&!p.dead){p.stone=true;p.kb=null;rs.gaols.push({p,x:p.x,y:p.y,t:null,done:false});}
+  for(const p of players)if(p.target&&!p.dead&&!(p.kb&&p.kb.dead)){p.stone=true;p.kb=null;rs.gaols.push({p,x:p.x,y:p.y,t:null,done:false});}
   // 사슬: 여섯 번째 바위(6.3y) → 감옥 폭발(6y), 감옥 크기 1.8y 포함. 마지막 폭발이 타이탄 몸체(4.55y)에 닿아야 성공
   const REACH_B=BURST+GAOL_R,REACH_G=FREEFIRE+GAOL_R,REACH_T=FREEFIRE+TR;
   let layer=rs.gaols.filter(g=>dist(g,rs.bomb6)<=REACH_B),L=0;layer.forEach(g=>g.t=TL.b6);
   while(layer.length){L++;const nx=rs.gaols.filter(g=>g.t==null&&layer.some(h=>dist(g,h)<=REACH_G));nx.forEach(g=>g.t=TL.b6+TL.chainStep*L);layer=nx;}
   const m=me();
-  if(m.target&&!m.dead){
-    const mine=rs.gaols.find(g=>g.p===m);
+  const mine=rs.gaols.find(g=>g.p===m);
+  if(mine){
     if(mine.t==null){
       const gaps=[dist(mine,rs.bomb6)-REACH_B,...rs.gaols.filter(g=>g.t!=null).map(g=>dist(mine,g)-REACH_G)];
       fail(`사슬이 네 감옥까지 안 이어졌어. 가장 가까운 폭발과 ${Math.min(...gaps).toFixed(1)}y 모자랐어.`);
@@ -260,10 +260,10 @@ function update(dt){
     once('kb',t>=TL.K,upheaval);
     once('mark',t>=TL.mark,doMark);
     once('burst',t>=TL.burst,burst5);
-    once('ls1s',t>=TL.ls1Start,()=>startLS(rs.ls1));
+    once('ls1s',t>=rs.ls1.start,()=>startLS(rs.ls1));
     once('ls1',t>=rs.ls1.hit,()=>hitLS(rs.ls1,'첫'));
     once('fet',t>=TL.fetters,fetters);
-    once('ls2s',t>=TL.ls2Start,()=>startLS(rs.ls2));
+    once('ls2s',t>=rs.ls2.start,()=>startLS(rs.ls2));
     once('b6',t>=TL.b6,burst6);
     once('ls2',t>=rs.ls2.hit,()=>hitLS(rs.ls2,'두 번째'));
     for(const g of rs.gaols)if(g.t!=null&&!g.done&&t>=g.t)freefire(g);
