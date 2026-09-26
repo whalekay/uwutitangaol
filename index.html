@@ -97,7 +97,7 @@ kbd{font-family:inherit;border:1px solid var(--line);border-radius:4px;padding:0
 const D=Math.PI/180;
 const ROLES=['MT','ST','H1','H2','D1','D2','D3','D4'];
 // 경기장: 반경 20, 타이탄 1차 지오크래시 후 16 밖은 즉사
-const RB=20,RP=16,TR=4.55,KB=24,BURST=6.3,GAOL_R=1.8,FREEFIRE=6,LSW=6,LSKB=30,TOL=2,SPEED=6,SPRINT_MUL=1.3,SPRINT_DUR=10,PRAD=0.5,BURY=4.3,KB_TRAVEL=0.8,KB_LOCK=1.2,HIT_DELAY=0.6;
+const RB=20,RP=16,TR=4.55,KB=24,BURST=6.3,GAOL_R=1.8,FREEFIRE=6,LSW=6,LSKB=30,TOL=2,SPEED=6,SPRINT_MUL=1.3,SPRINT_DUR=10,PRAD=0.5,BURY=4.3,KB_TRAVEL=0.8,KB_LOCK=1.2,HIT_DELAY=0.4;
 const TITAN={x:0,y:-14};
 // 지오크래시 착지 = 0초
 const TL={bombs:4.5,kbStart:4.3,K:8.3,burstStart:7.3,burst:10.8,mark:10.4,drop:12.5,ls1Start:12.6,ls1:14.8,fetters:15.4,
@@ -241,11 +241,11 @@ function partySpot(act,tp){
 function npcMove(p,dt){
   const g=npcGoal(p);if(!g)return;
   const act=[rs.ls1,rs.ls2].filter(l=>l.angs&&!l.done);
-  const inside=act.some(l=>lineHit(l,p,PRAD+0.4));
+  const already=act.filter(l=>lineHit(l,p,PRAD+0.05));  // 이미 밟고 있는 줄은 빠져나가는 중
   const ox=p.x,oy=p.y,base=Math.atan2(g.y-oy,g.x-ox),d=Math.min(SPEED*dt,Math.hypot(g.x-ox,g.y-oy));
   for(const k of [0,30,-30,60,-60,90,-90]){
     p.x=ox+Math.cos(base+k*D)*d;p.y=oy+Math.sin(base+k*D)*d;clamp(p);
-    if(inside||!act.some(l=>lineHit(l,p,PRAD+0.4)))return;
+    if(!act.some(l=>!already.includes(l)&&lineHit(l,p,PRAD+0.1)))return;
   }
   p.x=ox;p.y=oy;
 }
