@@ -197,18 +197,21 @@ function fetters(){
   const REACH_B=BURST+GAOL_R,REACH_G=FREEFIRE+GAOL_R,REACH_T=FREEFIRE+TR;
   let layer=rs.gaols.filter(g=>dist(g,rs.bomb6)<=REACH_B),L=0;layer.forEach(g=>g.t=TL.b6);
   while(layer.length){L++;const nx=rs.gaols.filter(g=>g.t==null&&layer.some(h=>dist(g,h)<=REACH_G));nx.forEach(g=>g.t=TL.b6+TL.chainStep*L);layer=nx;}
+  // 실제 사슬 결과(팀 전체)
+  const lit=rs.gaols.filter(g=>g.t!=null);
+  rs.teamOk=lit.length===rs.gaols.length&&rs.gaols.length===3&&lit.some(g=>dist(g,TITAN)<=REACH_T);
+  // 내 판정: 앞뒤 사람이 정자리에 있다고 치고, 내 자리에서 사슬이 이어지는지만 봄
   const m=me();
   const mine=rs.gaols.find(g=>g.p===m);
   if(mine){
-    if(mine.t==null){
-      const gaps=[dist(mine,rs.bomb6)-REACH_B,...rs.gaols.filter(g=>g.t!=null).map(g=>dist(mine,g)-REACH_G)];
-      fail(`사슬이 네 감옥까지 안 이어졌어. 가장 가까운 폭발과 ${gapText(Math.min(...gaps))} 모자랐어.`);
-    }else{
-      const lit=rs.gaols.filter(g=>g.t!=null);
-      if(lit.length<rs.gaols.length)fail('사슬이 중간에 끊겨서 모든 감옥이 터지지 않았어.');
-      const gapT=Math.min(...lit.map(g=>dist(g,TITAN)-REACH_T));
-      if(gapT>0)fail(`마지막 감옥 폭발이 타이탄에 안 닿았어. ${gapText(gapT)} 모자랐어.`);
-    }
+    const k=m.slot;
+    const prev=k===2?{pt:rs.bomb6,r:REACH_B}:{pt:rs.slots[k+1],r:REACH_G};
+    const next=k===0?{pt:TITAN,r:REACH_T}:{pt:rs.slots[k-1],r:REACH_G};
+    const gp=dist(mine,prev.pt)-prev.r,gn=dist(mine,next.pt)-next.r;
+    if(gp>0)fail(k===2?`여섯 번째 바위 폭발이 네 감옥까지 안 닿아. ${gapText(gp)} 모자랐어.`
+      :`${k+2}번 감옥 폭발이 네 감옥까지 안 닿아. ${gapText(gp)} 모자랐어.`);
+    if(gn>0)fail(k===0?`네 감옥 폭발이 타이탄까지 안 닿아. ${gapText(gn)} 모자랐어.`
+      :`네 감옥 폭발이 ${k}번 감옥 자리까지 안 닿아. ${gapText(gn)} 모자랐어.`);
   }
 }
 function burst6(){
@@ -223,6 +226,7 @@ function resolve(){
   phase='result';const m=me();const ok=rs.fails.length===0;
   let html=ok?`<b>성공!</b> ${m.target?'사슬이 타이탄까지 이어졌어.':'대상 아님, 전부 피함.'}`
     :'<b>실패</b><ul>'+rs.fails.map(f=>`<li>${f}</li>`).join('')+'</ul>';
+  if(ok&&rs.flags.fet&&!rs.teamOk)html+=`<div style="margin-top:4px">${m.target?'네 자리는 맞았는데, ':''}다른 감옥 대상자가 자리를 잘못 잡아서 사슬이 끊겼어.</div>`;
   html+=`<div style="font-size:13px;margin-top:4px">감옥: ${rs.order.map((r,i)=>`${i+1}번 ${r}`).join(', ')}</div>`;
   setMsg(html,ok?'ok':'bad');rs.ok=ok;if(cfg.auto)autoT=3.2;
 }
