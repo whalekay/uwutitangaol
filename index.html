@@ -192,9 +192,11 @@ function hitLS(ls,label){
 }
 function gapText(g){return g<0.1?'0.1y도 안 되게':g.toFixed(1)+'y';}
 function fetters(){
+  // NPC 감옥 대상자는 항상 정자리에 굳힘(연습은 내 자리만 보기 위해)
+  for(const p of players)if(p.target&&p.role!==cfg.me&&!p.dead&&!(p.kb&&p.kb.dead)){const sl=rs.slots[p.slot];p.x=sl.x;p.y=sl.y;}
   for(const p of players)if(p.target&&!p.dead&&!(p.kb&&p.kb.dead)){p.stone=true;p.kb=null;rs.gaols.push({p,x:p.x,y:p.y,t:null,done:false});}
   // 사슬: 여섯 번째 바위(6.3y) → 감옥 폭발(6y), 감옥 크기 1.8y 포함. 마지막 폭발이 타이탄 몸체(4.55y)에 닿아야 성공
-  const REACH_B=BURST+GAOL_R,REACH_G=FREEFIRE+GAOL_R,REACH_T=FREEFIRE+TR;
+  const REACH_B=BURST+GAOL_R,REACH_G=FREEFIRE+GAOL_R,REACH_T=9.3;  // 몸체 가장자리(10.55)는 너무 널널해서, A징 정자리(8.3)에서 1y 여유만 두도록 조임
   let layer=rs.gaols.filter(g=>dist(g,rs.bomb6)<=REACH_B),L=0;layer.forEach(g=>g.t=TL.b6);
   while(layer.length){L++;const nx=rs.gaols.filter(g=>g.t==null&&layer.some(h=>dist(g,h)<=REACH_G));nx.forEach(g=>g.t=TL.b6+TL.chainStep*L);layer=nx;}
   // 실제 사슬 결과(팀 전체)
@@ -224,9 +226,9 @@ function freefire(g){
 }
 function resolve(){
   phase='result';const m=me();const ok=rs.fails.length===0;
-  let html=ok?`<b>성공!</b> ${m.target?'사슬이 타이탄까지 이어졌어.':'대상 아님, 전부 피함.'}`
+  let html=ok?`<b>성공!</b> ${m.target?(rs.teamOk?'사슬이 타이탄까지 이어졌어.':'네 자리는 정확했어.'):'대상 아님, 전부 피함.'}`
     :'<b>실패</b><ul>'+rs.fails.map(f=>`<li>${f}</li>`).join('')+'</ul>';
-  if(ok&&rs.flags.fet&&!rs.teamOk)html+=`<div style="margin-top:4px">${m.target?'네 자리는 맞았는데, ':''}다른 감옥 대상자가 자리를 잘못 잡아서 사슬이 끊겼어.</div>`;
+  if(ok&&rs.flags.fet&&!rs.teamOk)html+=`<div style="margin-top:4px">다른 감옥 대상자가 사고를 쳐서 사슬이 끊겼어. 네 잘못은 아니야.</div>`;
   html+=`<div style="font-size:13px;margin-top:4px">감옥: ${rs.order.map((r,i)=>`${i+1}번 ${r}`).join(', ')}</div>`;
   setMsg(html,ok?'ok':'bad');rs.ok=ok;if(cfg.auto)autoT=3.2;
 }
